@@ -1,0 +1,83 @@
+{
+  "name": "WEBFLOW_ASTRO_SYNC",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webflow-astro-sync",
+        "responseMode": "lastNode"
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-320, 0],
+      "webhookId": "webflow-astro-sync",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = await $http.request({\n  method: 'GET',\n  url: 'https://api.webflow.com/v2/collections/68d361b0271a5d106adb4d4a/items?limit=100',\n  headers: {\n    'Authorization': 'Bearer ' + $env.WEBFLOW_API_TOKEN,\n    'Content-Type': 'application/json'\n  }\n});\n\nconst articles = response.data.items.map(item => {\n  const fd = item.fieldData;\n  return {\n    id: item.id,
+    slug: fd.slug || (fd.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'),\n    name: fd.name || '',\n    title: fd['seo-title'] || fd.name || '',\n    description: fd['seo-description'] || '',\n    hero: { heading: fd['hero-heading-2'] || '', ctaText: fd['hero-cta-text'] || 'Jetzt kaufen' },\n    product: { brand: fd.brand || '', model: fd.model || '', price: fd.price || '0' }\n  };\n});\n\nreturn [{json: {articles, count: articles.length}}];"
+      },
+      "id": "fetch",
+      "name": "Fetch Webflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://api.github.com/repos/S24-MECHTECH/s24-astro-webflow-sync/contents/src/data/articles.json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "Bearer " + $env.GH_TOKEN},
+            {"name": "Accept", "value": "application/vnd.github+json"}
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {"name": "message", "value": "Sync: Webflow {{$now}}"},
+            {"name": "content", "value": "={{Base64Encode(JSON.stringify($json.articles))}}"},
+            {"name": "branch", "value": "main"}
+          ]
+        }
+      },
+      "id": "github",
+      "name": "Push to GitHub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/S24-MECHTECH/s24-astro-webflow-sync/dispatches",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "Bearer " + $env.GH_TOKEN},
+            {"name": "Accept", "value": "application/vnd.github+json"}
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [{"name": "event_type", "value": "deploy-astro"}]
+        }
+      },
+      "id": "deploy",
+      "name": "Trigger Deploy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [400, 0]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {"main": [[{"node": "Fetch Webflow"}]]},
+    "Fetch Webflow": {"main": [[{"node": "Push to GitHub"}]]},
+    "Push to GitHub": {"main": [[{"node": "Trigger Deploy"}]]}
+  }
+}

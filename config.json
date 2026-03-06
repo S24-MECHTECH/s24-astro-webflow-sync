@@ -1,0 +1,14 @@
+{
+  "webflow": {
+    "siteId": "68d2fd81a3e41128755efbe7",
+    "collectionId": "68d361b0271a5d106adb4d4a",
+    "collectionName": "S24_cms_content_sides"
+  },
+  "github": {
+    "repo": "S24-MECHTECH/s24-astro-webflow-sync",
+    "branch": "main"
+  },
+  "astro": {
+    "cloudflareProject": "s24-astro-webflow"
+  }
+}

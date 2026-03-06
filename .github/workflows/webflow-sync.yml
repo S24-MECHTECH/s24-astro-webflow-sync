@@ -1,0 +1,47 @@
+name: Sync Webflow to Astro
+
+on:
+  repository_dispatch:
+    types: [webflow-update]
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Fetch Webflow CMS
+        run: |
+          curl -s -X GET "https://api.webflow.com/v2/collections/68d361b0271a5d106adb4d4a/items?limit=100" \
+            -H "Authorization: Bearer ${{ secrets.WEBFLOW_API_TOKEN }}" \
+            -o src/data/webflow-items.json
+      
+      - name: Transform Data
+        run: node scripts/transform-webflow.js
+      
+      - name: Commit Changes
+        run: |
+          git config user.name "Webflow Sync Bot"
+          git config user.email "bot@s24-mechtech.de"
+          git add src/data/
+          git diff --cached --quiet || git commit -m "Sync: Webflow $(date +'%Y-%m-%d %H:%M')"
+          git push
+
+      - name: Trigger Deploy
+        if: success()
+        run: |
+          curl -X POST https://api.github.com/repos/S24-MECHTECH/s24-astro-webflow-sync/dispatches \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" \
+            -d '{"event_type":"deploy-astro"}'
