@@ -1,0 +1,32 @@
+# DISABLED - deploy-astro.yml was broken (no package.json, wrong repo)
+# The actual deployment is handled by astro-blog-starter-template/deploy-astro.yml
+# Keeping as reference only.
+
+name: Deploy Astro (DISABLED)
+
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [deploy-astro]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+        env:
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+      - uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: s24-astro-webflow
+          directory: dist
